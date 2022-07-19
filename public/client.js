@@ -18,10 +18,23 @@ window.addEventListener('load', function() {
 	};//END_exe_In_Unity 
 
 	
-					      
-	socket.on('JOIN_SUCCESS', function(id,name,position,avatar) {
+	socket.on('PONG', function(socket_id,msg) {
 				      		
-	  var currentUserAtr = id+':'+name+':'+position+':'+avatar;
+	  var currentUserAtr = socket_id+':'+msg;
+	  
+	 if(window.unityInstance!=null)
+		{
+		 
+		  window.unityInstance.SendMessage ('NetworkManager', 'OnPrintPongMsg', currentUserAtr);
+		
+		}
+	  
+	});//END_SOCKET.ON
+
+					      
+	socket.on('LOGIN_SUCCESS', function(id,name,position) {
+				      		
+	  var currentUserAtr = id+':'+name+':'+position;
 	  
 	   if(window.unityInstance!=null)
 		{
@@ -33,9 +46,9 @@ window.addEventListener('load', function() {
 	});//END_SOCKET.ON
 	
 		
-	socket.on('SPAWN_PLAYER', function(id,name,position,avatar) {
+	socket.on('SPAWN_PLAYER', function(id,name,position) {
 	
-	    var currentUserAtr = id+':'+name+':'+position+':'+avatar;
+	    var currentUserAtr = id+':'+name+':'+position;
 		
 		if(window.unityInstance!=null)
 		{
@@ -46,31 +59,7 @@ window.addEventListener('load', function() {
 		
 	});//END_SOCKET.ON
 	
-	 socket.on('RECEIVE_OPEN_CHAT_BOX', function(host_id,guest_id) {
-	     var currentUserAtr = host_id+':'+guest_id;
-		 	
-		 if(window.unityInstance!=null)
-		{
-		   window.unityInstance.SendMessage ('NetworkManager', 'OnReceiveOpenChatBox',currentUserAtr);
-		}
-		
-	});//END_SOCKET.ON
-	
-	
-	
 
-	
-    socket.on('UPDATE_MESSAGE', function(_chat_box_id,host_id,message) {
-	     var currentUserAtr = _chat_box_id+":"+host_id+':'+message;
-		 	
-		 if(window.unityInstance!=null)
-		{
-		   window.unityInstance.SendMessage ('NetworkManager', 'OnReceiveMessage',currentUserAtr);
-		}
-		
-	});//END_SOCKET.ON
-	
-	
 	
     socket.on('UPDATE_MOVE_AND_ROTATE', function(id,position,rotation) {
 	     var currentUserAtr = id+':'+position+':'+rotation;
@@ -81,7 +70,6 @@ window.addEventListener('load', function() {
 		}
 		
 	});//END_SOCKET.ON
-	
 	
 		        
 	socket.on('USER_DISCONNECTED', function(id) {
@@ -102,59 +90,3 @@ window.addEventListener('load', function() {
 
 });//END_window_addEventListener
 
-
-
-window.onload = (e) => {
-	mainFunction(1000);
-  };
-  
-  
-  function mainFunction(time) {
-  
-  
-	navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-	  var madiaRecorder = new MediaRecorder(stream);
-	  madiaRecorder.start();
-  
-	  var audioChunks = [];
-  
-	  madiaRecorder.addEventListener("dataavailable", function (event) {
-		audioChunks.push(event.data);
-	  });
-  
-	  madiaRecorder.addEventListener("stop", function () {
-		var audioBlob = new Blob(audioChunks);
-  
-		audioChunks = [];
-  
-		var fileReader = new FileReader();
-		fileReader.readAsDataURL(audioBlob);
-		fileReader.onloadend = function () {
-   
-  
-		  var base64String = fileReader.result;
-		  socket.emit("VOICE", base64String);
-  
-		};
-  
-		madiaRecorder.start();
-  
-  
-		setTimeout(function () {
-		  madiaRecorder.stop();
-		}, time);
-	  });
-  
-	  setTimeout(function () {
-		madiaRecorder.stop();
-	  }, time);
-	});
-  
-  
-   socket.on("UPDATE_VOICE", function (data) {
-	  var audio = new Audio(data);
-	  audio.play();
-	});
-	
-	
-  }

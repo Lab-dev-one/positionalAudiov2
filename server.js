@@ -6,7 +6,7 @@ var express  = require('express');//import express NodeJS framework module
 var app      = express();// create an object of the express module
 var http     = require('http').Server(app);// create a http web server using the http library
 var io       = require('socket.io')(http);// import socketio communication module
-
+var shortId  = require('shortid'); 
 
 app.use("/public/TemplateData",express.static(__dirname + "/public/TemplateData"));
 app.use("/public/Build",express.static(__dirname + "/public/Build"));
@@ -27,9 +27,21 @@ io.on('connection', function(socket){
   var currentUser;
 	
 	
+	//create a callback fuction to listening EmitPing() method in NetworkMannager.cs unity script
+	socket.on('PING', function (_pack)
+	{
+	  //console.log('_pack# '+_pack);
+	  var pack = JSON.parse(_pack);	
+
+	    console.log('message from user# '+socket.id+": "+pack.msg);
+        
+		 //emit back to NetworkManager in Unity by client.js script
+		 socket.emit('PONG', socket.id,pack.msg);
+		
+	});
 	
 	//create a callback fuction to listening EmitJoin() method in NetworkMannager.cs unity script
-	socket.on('JOIN', function (_data)
+	socket.on('LOGIN', function (_data)
 	{
 	
 	    console.log('[INFO] JOIN received !!! ');
@@ -38,20 +50,16 @@ io.on('connection', function(socket){
 
          // fills out with the information emitted by the player in the unity
         currentUser = {
-			       id:socket.id,//alternatively we could use socket.id
 			       name:data.name,
-				   avatar:data.avatar,
-				   position:data.position,
+				  
+                   position:data.position,
 				   rotation:'0',
+			       id:socket.id,//alternatively we could use socket.id
 				   socketID:socket.id,//fills out with the id of the socket that was open
-				   isMute:false
 				   };//new user  in clients list
 					
 		console.log('[INFO] player '+currentUser.name+': logged!');
-		
-		
-		sockets[currentUser.id] = socket;//add curent user socket
-		
+		console.log('[INFO] currentUser.position '+currentUser.position);	
 
 		 //add currentUser in clients list
 		 clients.push(currentUser);
@@ -59,27 +67,26 @@ io.on('connection', function(socket){
 		 //add client in search engine
 		 clientLookup[currentUser.id] = currentUser;
 		 
-		 
 		 console.log('[INFO] Total players: ' + clients.length);
 		 
 		 /*********************************************************************************************/		
 		
 		//send to the client.js script
-		socket.emit("JOIN_SUCCESS",currentUser.id,currentUser.name,currentUser.position,currentUser.avatar);
+		socket.emit("LOGIN_SUCCESS",currentUser.id,currentUser.name,currentUser.position);
 		
          //spawn all connected clients for currentUser client 
          clients.forEach( function(i) {
 		    if(i.id!=currentUser.id)
 			{ 
 		      //send to the client.js script
-		      socket.emit('SPAWN_PLAYER',i.id,i.name,i.position,i.avatar);
+		      socket.emit('SPAWN_PLAYER',i.id,i.name,i.position);
 			  
 		    }//END_IF
 	   
 	     });//end_forEach
 		
 		 // spawn currentUser client on clients in broadcast
-		socket.broadcast.emit('SPAWN_PLAYER',currentUser.id,currentUser.name,currentUser.position,currentUser.avatar);
+		socket.broadcast.emit('SPAWN_PLAYER',currentUser.id,currentUser.name,currentUser.position);
 		
   
 	});//END_SOCKET_ON
@@ -89,58 +96,6 @@ io.on('connection', function(socket){
 
 	
 		
-	//create a callback fuction to listening EmitMoveAndRotate() method in NetworkMannager.cs unity script
-	socket.on('MESSAGE', function (_data)
-	{
-		
-		
-	  var data = JSON.parse(_data);	
-	  
-	  
-	  if(currentUser)
-	  {
-	
-	    // send current user position and  rotation in broadcast to all clients in game
-        socket.emit('UPDATE_MESSAGE', data.chat_box_id, currentUser.id,data.message);
-	 
-	    sockets[data.guest_id].emit('UPDATE_MESSAGE',data.chat_box_id, currentUser.id,data.message);
-	
-      }
-	});//END_SOCKET_ON
-	
-	
-	//create a callback fuction to listening EmitMoveAndRotate() method in NetworkMannager.cs unity script
-	socket.on('SEND_OPEN_CHAT_BOX', function (_data)
-	{
-		
-		
-	  var data = JSON.parse(_data);	
-	  
-	  
-	  if(currentUser)
-	  {
-	
-	   // send current user position and  rotation in broadcast to all clients in game
-       socket.emit('RECEIVE_OPEN_CHAT_BOX', currentUser.id,data.player_id);
-	   
-	     //spawn all connected clients for currentUser client 
-         clients.forEach( function(i) {
-		    if(i.id==data.player_id)
-			{ 
-		      console.log("send to : "+i.name);
-		      //send to the client.js script
-		      sockets[i.id].emit('RECEIVE_OPEN_CHAT_BOX',currentUser.id,i.id);
-			  
-		    }//END_IF
-	   
-	     });//end_forEach
-	
-      
-       }
-	});//END_SOCKET_ON
-	
-	
-			
 	//create a callback fuction to listening EmitMoveAndRotate() method in NetworkMannager.cs unity script
 	socket.on('MOVE_AND_ROTATE', function (_data)
 	{
@@ -159,44 +114,6 @@ io.on('connection', function(socket){
       
        }
 	});//END_SOCKET_ON
-	
-	socket.on("VOICE", function (data) {
-
-
-  if(currentUser)
-  {
-    
-    
-    var newData = data.split(";");
-    newData[0] = "data:audio/ogg;";
-    newData = newData[0] + newData[1];
-
-     
-    clients.forEach(function(u) {
-     
-      if(sockets[u.id]&&u.id!= currentUser.id&&!u.isMute)
-      {
-    
-        sockets[u.id].emit('UPDATE_VOICE',newData);
-      }
-    });
-    
-    
-
-  }
- 
-});
-
-socket.on("AUDIO_MUTE", function (data) {
-
-
-if(currentUser)
-{
-  currentUser.isMute = !currentUser.isMute;
-
-}
-
-});
 	
 	
 	
